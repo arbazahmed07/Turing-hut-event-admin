@@ -13,40 +13,49 @@ export default function EventEditor({
 	const [fileName, setFileName] = useState("");
 	const [content, setContent] = useState("");
 	const [showPreview, setShowPreview] = useState(true);
+	const [selectedImage, setSelectedImage] = useState(null);
+	const [imagePreview, setImagePreview] = useState("");
 
 	useEffect(() => {
 		if (event) {
 			setFileName(event.name);
 			setContent(event.content);
 		} else {
-			// Default template for new events
+			// Default template for new events with comprehensive frontmatter
+			const currentDate = new Date().toISOString().split("T")[0];
 			setFileName("");
-			setContent(`---
-title: "Event Title"
-date: "${new Date().toISOString().split("T")[0]}"
-location: "Event Location"
-time: "Event Time"
-description: "Brief description of the event"
----
-
-# Event Title
-
-## Description
-
-Add your event description here...
-
-## Details
-
-- **Date:** ${new Date().toISOString().split("T")[0]}
-- **Location:** TBD
-- **Time:** TBD
-
-## Registration
-
-Details about how to register...
-`);
+			setContent(``);
 		}
 	}, [event]);
+
+	const handleImageSelect = (e) => {
+		const file = e.target.files[0];
+		if (file) {
+			// Validate file type
+			if (!file.type.startsWith("image/")) {
+				alert("Please select a valid image file");
+				return;
+			}
+
+			// Validate file size (5MB limit)
+			if (file.size > 5 * 1024 * 1024) {
+				alert("Image size should be less than 5MB");
+				return;
+			}
+
+			setSelectedImage(file);
+
+			// Create preview
+			const reader = new FileReader();
+			reader.onload = (e) => setImagePreview(e.target.result);
+			reader.readAsDataURL(file);
+		}
+	};
+
+	const removeImage = () => {
+		setSelectedImage(null);
+		setImagePreview("");
+	};
 
 	const handleSave = () => {
 		if (!fileName.trim()) {
@@ -60,7 +69,7 @@ Details about how to register...
 			finalFileName += ".md";
 		}
 
-		onSave(finalFileName, content, event);
+		onSave(finalFileName, content, event, selectedImage);
 	};
 
 	return (
@@ -96,6 +105,86 @@ Details about how to register...
 								? "File name cannot be changed when editing"
 								: "Will automatically add .md extension if not provided. Spaces will be replaced with dashes."}
 						</p>
+					</div>
+
+					{/* Image Upload Section */}
+					<div className="mb-6">
+						<label className="block text-sm font-medium mb-2 text-gray-300">
+							Event Image (Optional)
+						</label>
+
+						{!selectedImage && !imagePreview && (
+							<div className="border-2 border-dashed border-gray-600 rounded-xl p-6 text-center hover:border-cyan-500 transition-colors">
+								<input
+									type="file"
+									accept="image/*"
+									onChange={handleImageSelect}
+									disabled={loading}
+									className="hidden"
+									id="image-upload"
+								/>
+								<label
+									htmlFor="image-upload"
+									className="cursor-pointer flex flex-col items-center space-y-2">
+									<svg
+										className="w-12 h-12 text-gray-400"
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24">
+										<path
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											strokeWidth={2}
+											d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+										/>
+									</svg>
+									<span className="text-gray-400">
+										Click to upload an image
+									</span>
+									<span className="text-xs text-gray-500">
+										PNG, JPG, GIF up to 5MB
+									</span>
+								</label>
+							</div>
+						)}
+
+						{(selectedImage || imagePreview) && imagePreview && (
+							<div className="border-2 border-gray-600 rounded-xl p-4">
+								<div className="flex items-start space-x-4">
+									<img
+										src={imagePreview}
+										alt="Event preview"
+										className="w-32 h-32 object-cover rounded-lg"
+									/>
+									<div className="flex-1">
+										<p className="text-sm text-gray-300 mb-2">
+											{selectedImage ? selectedImage.name : "Current image"}
+										</p>
+										<div className="flex space-x-2">
+											<label
+												htmlFor="image-upload-replace"
+												className="px-3 py-1 bg-cyan-600 text-white text-sm rounded-lg hover:bg-cyan-700 cursor-pointer transition-colors">
+												Replace
+											</label>
+											<input
+												type="file"
+												accept="image/*"
+												onChange={handleImageSelect}
+												disabled={loading}
+												className="hidden"
+												id="image-upload-replace"
+											/>
+											<button
+												onClick={removeImage}
+												disabled={loading}
+												className="px-3 py-1 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors">
+												Remove
+											</button>
+										</div>
+									</div>
+								</div>
+							</div>
+						)}
 					</div>
 
 					<div className="mb-6">
@@ -147,17 +236,18 @@ Details about how to register...
 						<button
 							onClick={onCancel}
 							disabled={loading}
-							className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 disabled:bg-gray-800 disabled:cursor-not-allowed disabled:transform-none border-2 border-gray-600 hover:border-gray-500">
+							className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-xl font-medium transition-all border-2 border-gray-600 hover:border-gray-500 disabled:bg-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed">
 							Cancel
 						</button>
 						<button
 							onClick={handleSave}
 							disabled={loading}
-							className="px-6 py-3 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-700 hover:to-cyan-800 text-white rounded-xl font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center shadow-lg shadow-cyan-500/50 disabled:shadow-none border-2 border-cyan-400 disabled:border-gray-600">
-							{loading && (
-								<div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2"></div>
-							)}
-							{event ? "Update (Create PR)" : "Create (Create PR)"}
+							className="px-6 py-3 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-700 hover:to-cyan-800 text-white rounded-xl font-medium transition-all border-2 border-cyan-400 hover:border-cyan-300 disabled:from-gray-600 disabled:to-gray-700 disabled:border-gray-600 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/50 disabled:shadow-none">
+							{loading
+								? "Saving..."
+								: event
+								? "Update (Create PR)"
+								: "Create (Create PR)"}
 						</button>
 					</div>
 				</div>

@@ -27,6 +27,7 @@ export default function Home() {
 	const repoOwner = "arbazahmed07";
 	const repoName = "docker-tut";
 	const eventsPath = "event";
+	const imagesPath = "src/assets/images/events";
 
 	const showToast = (message, type = "success") => {
 		setToast({ message, type });
@@ -168,7 +169,56 @@ export default function Home() {
 		);
 	};
 
-	const handleSave = async (fileName, content, originalEvent) => {
+	const uploadImage = async (imageFile, branchName, eventFileName) => {
+		try {
+			// Use the event filename instead of extracting from frontmatter
+			// Remove .md or .mdx extension from filename
+			const fileNameWithoutExt = eventFileName.replace(/\.(md|mdx)$/i, "");
+
+			// Generate image filename based on event filename and file extension
+			const fileExtension = imageFile.name.split(".").pop().toLowerCase();
+			const imageName = `${fileNameWithoutExt}.${fileExtension}`;
+			const imagePath = `${imagesPath}/${imageName}`;
+
+			// Convert image file to base64
+			const imageBuffer = await imageFile.arrayBuffer();
+			const imageBase64 = Buffer.from(imageBuffer).toString("base64");
+
+			// Upload image to repository (no need to check if exists since it's a new branch)
+			await octokit.repos.createOrUpdateFileContents({
+				owner: repoOwner,
+				repo: repoName,
+				path: imagePath,
+				message: `Add event image: ${imageName}`,
+				content: imageBase64,
+				branch: branchName,
+			});
+
+			// Return the relative path format for the markdown
+			return `../images/events/${imageName}`;
+		} catch (err) {
+			console.error("Error uploading image:", err);
+
+			// Handle specific GitHub API errors
+			if (err.status === 422) {
+				throw new Error(
+					`Failed to upload image: Invalid content or path. ${err.message}`
+				);
+			} else if (err.status === 409) {
+				throw new Error(
+					`Failed to upload image: Conflict - file already exists. ${err.message}`
+				);
+			} else if (err.status === 403) {
+				throw new Error(
+					`Failed to upload image: Permission denied. Check your token permissions.`
+				);
+			} else {
+				throw new Error(`Failed to upload image: ${err.message}`);
+			}
+		}
+	};
+
+	const handleSave = async (fileName, content, originalEvent, imageFile) => {
 		setLoading(true);
 		setError("");
 
@@ -208,6 +258,41 @@ export default function Home() {
 				sha: refData.object.sha,
 			});
 
+			let finalContent = content;
+
+			// Upload image if provided
+			if (imageFile) {
+				try {
+					// Pass the sanitized filename to uploadImage function
+					const imagePath = await uploadImage(
+						imageFile,
+						branchName,
+						sanitizedFileName
+					);
+
+					// Update content to include image path in frontmatter
+					if (
+						finalContent.includes('image: ""') ||
+						finalContent.includes("image: ")
+					) {
+						finalContent = finalContent.replace(
+							/image: "?[^"\n]*"?/,
+							`image: ${imagePath}`
+						);
+					} else {
+						// Add image field to frontmatter if it doesn't exist
+						finalContent = finalContent.replace(
+							/---\n/,
+							`---\nimage: ${imagePath}\n`
+						);
+					}
+				} catch (imageErr) {
+					setError(`Failed to upload image: ${imageErr.message}`);
+					showToast(`Failed to upload image: ${imageErr.message}`, "error");
+					return;
+				}
+			}
+
 			const filePath = `${eventsPath}/${sanitizedFileName}`;
 
 			// Create or update the file in the new branch
@@ -218,7 +303,7 @@ export default function Home() {
 					repo: repoName,
 					path: filePath,
 					message: `Update ${sanitizedFileName}`,
-					content: Buffer.from(content).toString("base64"),
+					content: Buffer.from(finalContent).toString("base64"),
 					branch: branchName,
 					sha: originalEvent.sha,
 				});
@@ -229,7 +314,7 @@ export default function Home() {
 					repo: repoName,
 					path: filePath,
 					message: `Add ${sanitizedFileName}`,
-					content: Buffer.from(content).toString("base64"),
+					content: Buffer.from(finalContent).toString("base64"),
 					branch: branchName,
 				});
 			}
@@ -244,8 +329,12 @@ export default function Home() {
 				head: branchName,
 				base: defaultBranch,
 				body: originalEvent
-					? `This PR updates the event file: ${sanitizedFileName}`
-					: `This PR adds a new event file: ${sanitizedFileName}`,
+					? `This PR updates the event file: ${sanitizedFileName}${
+							imageFile ? "\n\nIncludes image upload." : ""
+					  }`
+					: `This PR adds a new event file: ${sanitizedFileName}${
+							imageFile ? "\n\nIncludes image upload." : ""
+					  }`,
 			});
 
 			showToast(
