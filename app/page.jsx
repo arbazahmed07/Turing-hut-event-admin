@@ -17,17 +17,31 @@ export default function Home() {
 	const [editingEvent, setEditingEvent] = useState(null);
 	const [isAdding, setIsAdding] = useState(false);
 
+	// User-provided repository configuration
+	const [baseRepoPath, setBaseRepoPath] = useState("");
+	const [targetFolderPath, setTargetFolderPath] = useState("");
+	const [imagePath, setImagePath] = useState("");
+
 	// Toast notifications
 	const [toast, setToast] = useState(null);
 
 	// Confirm dialog
 	const [confirmDialog, setConfirmDialog] = useState(null);
 
-	// Hardcoded repository configuration
-	const repoOwner = "arbazahmed07";
-	const repoName = "docker-tut";
-	const eventsPath = "event";
-	const imagesPath = "src/assets/images/events";
+	// Parse repository info from base repo path
+	const getRepoInfo = () => {
+		if (!baseRepoPath) return { repoOwner: "", repoName: "" };
+
+		// Extract owner and repo from GitHub URL or path
+		// Supports formats like: github.com/owner/repo, owner/repo, https://github.com/owner/repo
+		const match = baseRepoPath.match(/(?:github\.com\/)?([^\/]+)\/([^\/\s]+)/);
+		if (match) {
+			return { repoOwner: match[1], repoName: match[2] };
+		}
+		return { repoOwner: "", repoName: "" };
+	};
+
+	const { repoOwner, repoName } = getRepoInfo();
 
 	const showToast = (message, type = "success") => {
 		setToast({ message, type });
@@ -40,6 +54,29 @@ export default function Home() {
 	const handleAuthenticate = async () => {
 		if (!pat.trim()) {
 			setError("Please enter a GitHub Personal Access Token");
+			return;
+		}
+
+		if (!baseRepoPath.trim()) {
+			setError("Please enter the base repository path");
+			return;
+		}
+
+		if (!targetFolderPath.trim()) {
+			setError("Please enter the target folder path");
+			return;
+		}
+
+		if (!imagePath.trim()) {
+			setError("Please enter the image path");
+			return;
+		}
+
+		const { repoOwner: owner, repoName: name } = getRepoInfo();
+		if (!owner || !name) {
+			setError(
+				"Invalid repository path. Use format: owner/repo or github.com/owner/repo"
+			);
 			return;
 		}
 
@@ -72,7 +109,7 @@ export default function Home() {
 			const { data: contents } = await octokit.repos.getContent({
 				owner: repoOwner,
 				repo: repoName,
-				path: eventsPath,
+				path: targetFolderPath,
 			});
 
 			// Filter for markdown files
@@ -115,7 +152,7 @@ export default function Home() {
 			}
 		} catch (err) {
 			const errorMsg = err.message.includes("404")
-				? `Directory "${eventsPath}" not found. Please check the path.`
+				? `Directory "${targetFolderPath}" not found. Please check the path.`
 				: err.message.includes("403")
 				? "Access denied. Check your PAT permissions."
 				: `Failed to load events: ${err.message}`;
@@ -178,7 +215,7 @@ export default function Home() {
 			// Generate image filename based on event filename and file extension
 			const fileExtension = imageFile.name.split(".").pop().toLowerCase();
 			const imageName = `${fileNameWithoutExt}.${fileExtension}`;
-			const imagePath = `${imagesPath}/${imageName}`;
+			const imageFilePath = `${imagePath}/${imageName}`;
 
 			// Convert image file to base64
 			const imageBuffer = await imageFile.arrayBuffer();
@@ -188,14 +225,14 @@ export default function Home() {
 			await octokit.repos.createOrUpdateFileContents({
 				owner: repoOwner,
 				repo: repoName,
-				path: imagePath,
+				path: imageFilePath,
 				message: `Add event image: ${imageName}`,
 				content: imageBase64,
 				branch: branchName,
 			});
 
 			// Return the relative path format for the markdown
-			return `../images/events/${imageName}`;
+			return `${imagePath}/${imageName}`;
 		} catch (err) {
 			console.error("Error uploading image:", err);
 
@@ -293,7 +330,7 @@ export default function Home() {
 				}
 			}
 
-			const filePath = `${eventsPath}/${sanitizedFileName}`;
+			const filePath = `${targetFolderPath}/${sanitizedFileName}`;
 
 			// Create or update the file in the new branch
 			if (originalEvent) {
@@ -393,24 +430,14 @@ export default function Home() {
 					/>
 				)}
 
-				<div className="bg-gradient-to-br from-gray-800 to-gray-900 p-8 rounded-2xl shadow-2xl border-2 border-cyan-500 w-full max-w-md">
+				<div className="bg-gradient-to-br from-gray-800 to-gray-900 p-8 rounded-2xl shadow-2xl border-2 border-cyan-500 w-full max-w-lg">
 					<div className="text-center mb-6">
 						<h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-cyan-300 bg-clip-text text-transparent">
-							GitHub Events Manager
+							GitHub Files Manager
 						</h1>
 						<p className="text-gray-400 text-sm mt-2">
-							Manage your events with ease
+							Manage your files with ease
 						</p>
-						<div className="mt-4 p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg">
-							<p className="text-xs text-cyan-300">
-								<span className="font-semibold">Repository:</span> {repoOwner}/
-								{repoName}
-							</p>
-							<p className="text-xs text-cyan-300">
-								<span className="font-semibold">Events Path:</span> /
-								{eventsPath}
-							</p>
-						</div>
 					</div>
 
 					<div className="mb-4">
@@ -425,17 +452,60 @@ export default function Home() {
 							placeholder="ghp_xxxxxxxxxxxx"
 							className="w-full px-4 py-3 bg-gray-700 border-2 border-gray-600 text-white rounded-xl focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/50 transition-all"
 						/>
-						<p className="text-xs text-gray-400 mt-2 leading-relaxed">
-							Need a token? Create one at:{" "}
-							<span className="text-cyan-400">
-								GitHub Settings → Developer settings → Personal access tokens →
-								Tokens (classic)
-							</span>
-							<br />
-							Required scopes:{" "}
-							<span className="text-cyan-300 font-semibold">repo</span>
-						</p>
 					</div>
+
+					<div className="mb-4">
+						<label className="block text-sm font-medium mb-2 text-gray-300">
+							Base Repository Path
+						</label>
+						<input
+							type="text"
+							value={baseRepoPath}
+							onChange={(e) => setBaseRepoPath(e.target.value)}
+							onKeyDown={(e) => e.key === "Enter" && handleAuthenticate()}
+							placeholder="owner/repo or github.com/owner/repo"
+							className="w-full px-4 py-3 bg-gray-700 border-2 border-gray-600 text-white rounded-xl focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/50 transition-all"
+						/>
+					</div>
+
+					<div className="mb-4">
+						<label className="block text-sm font-medium mb-2 text-gray-300">
+							Target Folder Path
+						</label>
+						<input
+							type="text"
+							value={targetFolderPath}
+							onChange={(e) => setTargetFolderPath(e.target.value)}
+							onKeyDown={(e) => e.key === "Enter" && handleAuthenticate()}
+							placeholder="events or docs/posts"
+							className="w-full px-4 py-3 bg-gray-700 border-2 border-gray-600 text-white rounded-xl focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/50 transition-all"
+						/>
+					</div>
+
+					<div className="mb-4">
+						<label className="block text-sm font-medium mb-2 text-gray-300">
+							Image Path
+						</label>
+						<input
+							type="text"
+							value={imagePath}
+							onChange={(e) => setImagePath(e.target.value)}
+							onKeyDown={(e) => e.key === "Enter" && handleAuthenticate()}
+							placeholder="assets/images or public/images"
+							className="w-full px-4 py-3 bg-gray-700 border-2 border-gray-600 text-white rounded-xl focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/50 transition-all"
+						/>
+					</div>
+
+					<p className="text-xs text-gray-400 mb-4 leading-relaxed">
+						Need a token? Create one at:{" "}
+						<span className="text-cyan-400">
+							GitHub Settings → Developer settings → Personal access tokens →
+							Tokens (classic)
+						</span>
+						<br />
+						Required scopes:{" "}
+						<span className="text-cyan-300 font-semibold">repo</span>
+					</p>
 
 					{error && (
 						<div className="mb-4 p-3 bg-cyan-500/10 border-2 border-cyan-500 text-cyan-200 rounded-xl text-sm">
@@ -488,11 +558,11 @@ export default function Home() {
 					<div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
 						<div>
 							<h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-cyan-400 to-cyan-300 bg-clip-text text-transparent">
-								Events Manager
+								Files Manager
 							</h1>
 							<p className="text-gray-400 mt-1 text-sm md:text-base">
 								{repoOwner}/{repoName} <span className="text-cyan-400">→</span>{" "}
-								{eventsPath}
+								{targetFolderPath}
 							</p>
 						</div>
 					</div>

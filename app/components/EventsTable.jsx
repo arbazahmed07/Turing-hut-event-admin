@@ -8,27 +8,27 @@ export default function EventsTable({
 	return (
 		<div className="bg-gradient-to-br from-gray-800 to-gray-900 border-2 border-cyan-500 rounded-2xl shadow-2xl overflow-hidden">
 			<div className="p-4 md:p-6 border-b border-gray-700 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-				<h2 className="text-xl md:text-2xl font-bold text-cyan-300">Events</h2>
+				<h2 className="text-xl md:text-2xl font-bold text-cyan-300">Files</h2>
 				<button
 					onClick={onAdd}
 					disabled={loading}
 					className="bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-700 hover:to-cyan-800 text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/50 disabled:shadow-none border-2 border-cyan-400 disabled:border-gray-600">
-					Add New Event
+					Add File
 				</button>
 			</div>
 
 			{loading && (
 				<div className="p-8 text-center">
 					<div className="inline-block animate-spin rounded-full h-10 w-10 border-4 border-purple-500 border-t-transparent"></div>
-					<p className="mt-4 text-gray-400 font-medium">Loading events...</p>
+					<p className="mt-4 text-gray-400 font-medium">Loading files...</p>
 				</div>
 			)}
 
 			{!loading && events.length === 0 && (
 				<div className="p-12 text-center">
-					<p className="text-gray-400 text-lg font-medium">No events found.</p>
+					<p className="text-gray-400 text-lg font-medium">No files found.</p>
 					<p className="text-gray-500 text-sm mt-2">
-						Click "Add New Event" to create one.
+						Click "Add File" to create one.
 					</p>
 				</div>
 			)}

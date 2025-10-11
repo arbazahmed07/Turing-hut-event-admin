@@ -2,14 +2,31 @@ TURING HUT # GitHub Events/Newsletters Admin
 
 A Next.js-based admin interface for managing events and newsletters stored in GitHub repositories. This application allows you to create, edit, and delete markdown files directly from a web interface, with all changes submitted via Pull Requests.
 
+## Turing Hut Website Configuration
+
+For the Turing Hut website, use these configuration values:
+
+- **Base Repository Path**: `linustribevnr/turing-hut-website`
+
+### Events Configuration:
+
+- **Target Folder Path**: `src/assets/events`
+- **Image Path**: `src/assets/images/events`
+
+### Newsletters Configuration:
+
+- **Target Folder Path**: `src/assets/newsletters`
+- **Image Path**: `src/assets/images/newsletters`
+
 ## Features
 
 - 🔐 **GitHub PAT Authentication** - Secure authentication using Personal Access Tokens
-- 📝 **CRUD Operations** - Create, Read, Update, and Delete event files
+- 📝 **CRUD Operations** - Create, Read, Update, and Delete files
 - 👁️ **Live Preview** - Real-time markdown preview while editing
 - 🔄 **Pull Request Workflow** - All changes are submitted via PRs for review
-- 📊 **Table View** - Clean table interface to view all events
-- 🎯 **No Environment Variables** - Each user provides their own PAT on page load
+- 📊 **Table View** - Clean table interface to view all files
+- 🎯 **Configurable Paths** - Support for custom repository and folder paths
+- 🎯 **No Environment Variables** - Each user provides their own PAT and paths on page load
 
 ## Getting Started
 
@@ -53,45 +70,46 @@ npm run dev
 5. Click "Generate token"
 6. Copy the token (you won't be able to see it again!)
 
-### Step 2: Authenticate
+### Step 2: Authenticate and Configure
 
-1. On the application homepage, you'll see a PAT input field
-2. Paste your GitHub Personal Access Token
+1. On the application homepage, you'll see form fields for:
+
+   - **GitHub Personal Access Token**: Paste your PAT here
+   - **Base Repository Path**: Enter the repository path (e.g., `owner/repo`)
+   - **Target Folder Path**: Path where markdown files will be stored
+   - **Image Path**: Path where uploaded images will be stored
+
+2. For Turing Hut website, use the configuration values listed above
+
 3. Click "Authenticate"
 
-### Step 3: Configure Repository
+### Step 3: Manage Files
 
-After authentication, you'll need to configure:
+#### View Files
 
-- **Repository Owner**: The GitHub username or organization (e.g., `arbazahmed07`)
-- **Repository Name**: The name of the repository (e.g., `my-events-repo`)
-- **Events Directory Path**: The path to the directory containing event files (e.g., `events` or `content/events`)
-
-### Step 4: Manage Events
-
-#### View Events
-
-- All events are displayed in a table format
+- All files are displayed in a table format
 - You can see the filename, path, and a preview of the content
 
-#### Add New Event
+#### Add New File
 
-1. Click "Add New Event" button
+1. Click "Add File" button
 2. Enter a filename (`.md` extension will be added automatically if not provided)
 3. Edit the markdown content in the editor
-4. Use the live preview to see how it will look
-5. Click "Create (Create PR)" to submit a pull request
+4. Optionally upload an image
+5. Use the live preview to see how it will look
+6. Click "Create (Create PR)" to submit a pull request
 
-#### Edit Event
+#### Edit File
 
-1. Click "Edit" button next to any event
+1. Click "Edit" button next to any file
 2. Modify the content in the editor
-3. Use the live preview to verify changes
-4. Click "Update (Create PR)" to submit a pull request
+3. Optionally change or upload a new image
+4. Use the live preview to verify changes
+5. Click "Update (Create PR)" to submit a pull request
 
-#### Delete Event
+#### Delete File
 
-1. Click "Delete" button next to any event
+1. Click "Delete" button next to any file
 2. Confirm the deletion
 3. The file will be deleted directly (no PR created for deletions)
 
@@ -100,8 +118,10 @@ After authentication, you'll need to configure:
 ```
 app/
 ├── components/
-│   ├── EventsTable.jsx      # Table component for listing events
-│   └── EventEditor.jsx      # Editor component with live preview
+│   ├── EventsTable.jsx      # Table component for listing files
+│   ├── EventEditor.jsx      # Editor component with live preview
+│   ├── Toast.jsx           # Toast notification component
+│   └── ConfirmDialog.jsx   # Confirmation dialog component
 ├── globals.css              # Global styles including markdown prose
 ├── layout.jsx              # Root layout
 └── page.jsx                # Main page with authentication and routing
@@ -110,10 +130,12 @@ app/
 ## How It Works
 
 1. **Authentication**: Uses Octokit to authenticate with GitHub using the provided PAT
-2. **Read Files**: Fetches markdown files from the specified directory using GitHub API
-3. **Edit/Add**: Creates a new branch, commits changes, and opens a PR
-4. **Delete**: Directly deletes the file from the repository
-5. **Live Preview**: Uses react-markdown to render markdown content in real-time
+2. **Configuration**: User provides repository path, target folder, and image folder paths
+3. **Read Files**: Fetches markdown files from the specified directory using GitHub API
+4. **Edit/Add**: Creates a new branch, commits changes, uploads images, and opens a PR
+5. **Delete**: Directly deletes the file from the repository
+6. **Live Preview**: Uses react-markdown to render markdown content in real-time
+7. **Image Upload**: Supports uploading images which are automatically linked in markdown
 
 ## Technologies Used
 
@@ -157,17 +179,23 @@ Modify the prose styles in `app/globals.css` to customize how the markdown rende
 - Verify your PAT is correct and has the `repo` scope
 - Check if the token has expired
 
-### "Failed to load events"
+### "Failed to load files"
 
 - Verify the repository owner, name, and path are correct
 - Ensure your PAT has access to the repository
-- Check that the events directory exists
+- Check that the target directory exists
 
 ### "Failed to create PR"
 
 - Ensure you have write access to the repository
 - Check if there are no conflicting branch names
 - Verify the repository allows PR creation
+
+### Image upload fails
+
+- Check that the image path is correct
+- Ensure your PAT has write permissions
+- Verify image file size is reasonable (GitHub has limits)
 
 ## Contributing
 
